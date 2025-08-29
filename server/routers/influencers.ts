@@ -130,6 +130,62 @@ export const influencersRouter = router({
       }
     }),
 
+  unassignFromCampaign: publicProcedure
+    .input(
+      z.any().transform((data) => {
+        console.log("=== UNASSIGN INFLUENCER INPUT TRANSFORM ===");
+        console.log("Raw unassign input:", data);
+
+        // Input wrapper'ı çıkar
+        const actualInput = data.input || data;
+        console.log("Actual unassign input:", actualInput);
+
+        // Zod schema ile validate et
+        const unassignSchema = z.object({
+          influencerId: z.number(),
+          campaignId: z.number(),
+        });
+        try {
+          const result = unassignSchema.parse(actualInput);
+          console.log("Unassign Zod validation successful:", result);
+          return result;
+        } catch (error) {
+          console.error("Unassign Zod validation failed:", error);
+          throw error;
+        }
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      console.log("=== UNASSIGN INFLUENCER START ===");
+      console.log("Context user:", ctx.user?.id);
+      console.log("Input data:", input);
+
+      if (!ctx.user) throw new Error("Unauthorized");
+
+      try {
+        console.log("Unassigning influencer with data:", {
+          influencerId: input.influencerId,
+          campaignId: input.campaignId,
+        });
+
+        const [row] = await db
+          .delete(campaignInfluencers)
+          .where(
+            and(
+              eq(campaignInfluencers.influencerId, input.influencerId),
+              eq(campaignInfluencers.campaignId, input.campaignId)
+            )
+          )
+          .returning();
+
+        console.log("Influencer unassigned successfully:", row);
+        return row;
+      } catch (error) {
+        console.error("Database error unassigning influencer:", error);
+        throw error;
+      }
+    }),
+
   byCampaign: publicProcedure
     .input(
       z.any().transform((data) => {

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -10,6 +11,37 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  // Hata mesajlarını Türkçe'ye çeviren fonksiyon
+  const translateErrorMessage = (errorMessage: string): string => {
+    const errorMap: { [key: string]: string } = {
+      "Invalid login credentials": "Geçersiz email veya şifre",
+      "Invalid login credentials.": "Geçersiz email veya şifre",
+      "Email not confirmed": "Email adresi onaylanmamış",
+      "Email not confirmed.": "Email adresi onaylanmamış",
+      "Invalid email": "Geçersiz email adresi",
+      "Invalid email.": "Geçersiz email adresi",
+      "User not found": "Kullanıcı bulunamadı",
+      "User not found.": "Kullanıcı bulunamadı",
+      "Too many requests": "Çok fazla deneme yapıldı, lütfen bekleyin",
+      "Too many requests.": "Çok fazla deneme yapıldı, lütfen bekleyin",
+    };
+
+    // Tam eşleşme kontrolü
+    if (errorMap[errorMessage]) {
+      return errorMap[errorMessage];
+    }
+
+    // Kısmi eşleşme kontrolü
+    for (const [key, value] of Object.entries(errorMap)) {
+      if (errorMessage.toLowerCase().includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+
+    // Varsayılan mesaj
+    return errorMessage;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,9 +54,12 @@ export default function Login() {
     });
 
     if (!error) {
+      toast.success("Başarıyla giriş yapıldı!");
       router.push("/dashboard");
     } else {
-      setError(error.message);
+      const translatedError = translateErrorMessage(error.message);
+      setError(translatedError);
+      toast.error(translatedError);
     }
     setIsLoading(false);
   };
@@ -120,6 +155,28 @@ export default function Login() {
           </Link>
         </div>
       </div>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+          success: {
+            duration: 3000,
+            style: {
+              background: "#10B981",
+            },
+          },
+          error: {
+            duration: 5000,
+            style: {
+              background: "#EF4444",
+            },
+          },
+        }}
+      />
     </div>
   );
 }

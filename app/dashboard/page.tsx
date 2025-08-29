@@ -26,7 +26,6 @@ interface Influencer {
   engagementRate: string;
 }
 
-// Zod validation schema
 const campaignSchema = z.object({
   title: z.string().min(1, "Campaign title is required"),
   description: z.string().optional(),
@@ -52,8 +51,22 @@ export default function Dashboard() {
     null
   );
   const [showEditInfluencerForm, setShowEditInfluencerForm] = useState(false);
+  const [error, setError] = useState("");
 
-  // React Hook Form - Create Campaign
+  const [fieldErrors, setFieldErrors] = useState({
+    title: "",
+    description: "",
+    budget: "",
+    startDate: "",
+    endDate: "",
+  });
+
+  const [influencerFieldErrors, setInfluencerFieldErrors] = useState({
+    name: "",
+    followerCount: "",
+    engagementRate: "",
+  });
+
   const {
     register,
     handleSubmit,
@@ -71,7 +84,6 @@ export default function Dashboard() {
     },
   });
 
-  // React Hook Form - Edit Campaign
   const {
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
@@ -89,11 +101,7 @@ export default function Dashboard() {
     },
   });
 
-  // Debug: Form values değişikliklerini izle
   const formValues = watch();
-  useEffect(() => {
-    console.log("Form values changed:", formValues);
-  }, [formValues]);
 
   const [influencerForm, setInfluencerForm] = useState({
     name: "",
@@ -101,16 +109,64 @@ export default function Dashboard() {
     engagementRate: 0,
   });
 
-  // Influencer Edit Form State
   const [influencerEditForm, setInfluencerEditForm] = useState({
     name: "",
     followerCount: 0,
     engagementRate: 0,
   });
 
+  const validateCampaignForm = (data: CampaignFormData) => {
+    const errors = {
+      title: "",
+      description: "",
+      budget: "",
+      startDate: "",
+      endDate: "",
+    };
+
+    if (!data.title?.trim()) {
+      errors.title = "Lütfen bu alanı doldurun";
+    }
+    if (!data.description?.trim()) {
+      errors.description = "Lütfen bu alanı doldurun";
+    }
+    if (!data.budget?.trim()) {
+      errors.budget = "Lütfen bu alanı doldurun";
+    }
+    if (!data.startDate) {
+      errors.startDate = "Lütfen bu alanı doldurun";
+    }
+    if (!data.endDate) {
+      errors.endDate = "Lütfen bu alanı doldurun";
+    }
+
+    setFieldErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  };
+
+  const validateInfluencerForm = (data: any) => {
+    const errors = {
+      name: "",
+      followerCount: "",
+      engagementRate: "",
+    };
+
+    if (!data.name?.trim()) {
+      errors.name = "Lütfen bu alanı doldurun";
+    }
+    if (!data.followerCount || data.followerCount <= 0) {
+      errors.followerCount = "Lütfen bu alanı doldurun";
+    }
+    if (!data.engagementRate || data.engagementRate <= 0) {
+      errors.engagementRate = "Lütfen bu alanı doldurun";
+    }
+
+    setInfluencerFieldErrors(errors);
+    return Object.values(errors).every((error) => !error);
+  };
+
   const fetchCampaigns = useCallback(async () => {
     try {
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -125,7 +181,6 @@ export default function Dashboard() {
       if (data.result?.data) {
         const campaignsData = data.result.data;
 
-        // Local fetchCampaignInfluencers function
         const getCampaignInfluencers = async (
           campaignId: number
         ): Promise<Influencer[]> => {
@@ -162,7 +217,6 @@ export default function Dashboard() {
           }
         };
 
-        // Her campaign için assigned influencers'ı fetch et
         const campaignsWithInfluencers = await Promise.all(
           campaignsData.map(async (campaign: Campaign) => {
             const assignedInfluencers = await getCampaignInfluencers(
@@ -184,7 +238,6 @@ export default function Dashboard() {
 
   const fetchInfluencers = useCallback(async () => {
     try {
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -204,7 +257,6 @@ export default function Dashboard() {
     }
   }, []);
 
-  // useEffect'i tüm callback fonksiyonlarından sonra tanımlıyoruz
   useEffect(() => {
     const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
@@ -212,22 +264,6 @@ export default function Dashboard() {
       if (error || !data.user) {
         window.location.href = "/login";
       } else {
-        console.log("=== CLIENT SIDE USER ===");
-        console.log("User data:", data.user);
-        console.log("User ID:", data.user.id);
-
-        // Supabase session bilgilerini kontrol et
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log("Session data:", sessionData);
-        console.log(
-          "Access token:",
-          sessionData.session?.access_token?.substring(0, 20) + "..."
-        );
-        console.log(
-          "Refresh token:",
-          sessionData.session?.refresh_token?.substring(0, 20) + "..."
-        );
-
         setUser(data.user);
         fetchCampaigns();
         fetchInfluencers();
@@ -235,25 +271,38 @@ export default function Dashboard() {
     };
 
     getUser();
-  }, [fetchCampaigns, fetchInfluencers]);
+  }, []);
 
   const createCampaign = async (data: CampaignFormData) => {
     try {
-      console.log("=== FORM SUBMIT START ===");
-      console.log("Form data:", data);
-      console.log("Data title type:", typeof data.title);
-      console.log("Data title value:", data.title);
-      console.log("Data title length:", data.title?.length);
-
-      console.log("Creating campaign with data:", data);
-      console.log("Current user:", user);
-
       if (!user) {
         toast.error("No user found. Please log in again.");
         return;
       }
 
-      // Clean the data before sending
+      if (
+        !data.title?.trim() ||
+        !data.description?.trim() ||
+        !data.budget?.trim() ||
+        !data.startDate ||
+        !data.endDate
+      ) {
+        setError("Please fill the fields");
+        toast.error("Please fill the fields");
+        return;
+      }
+
+      if (data.startDate && data.endDate) {
+        const startDate = new Date(data.startDate);
+        const endDate = new Date(data.endDate);
+
+        if (endDate < startDate) {
+          setError("Bitiş tarihi başlangıç tarihinden önce olamaz");
+          toast.error("Bitiş tarihi başlangıç tarihinden önce olamaz");
+          return;
+        }
+      }
+
       const cleanData = {
         title: data.title.trim(),
         description: data.description?.trim() || "",
@@ -262,16 +311,10 @@ export default function Dashboard() {
         endDate: data.endDate || "",
       };
 
-      console.log("Clean data object:", cleanData);
-      console.log("Clean data JSON:", JSON.stringify(cleanData));
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
-      console.log("Session access token exists:", !!accessToken);
 
       const response = await fetch("/api/trpc/campaigns.create", {
         method: "POST",
@@ -282,20 +325,21 @@ export default function Dashboard() {
         body: JSON.stringify({ input: cleanData }),
       });
 
-      console.log("Response status:", response.status);
-      console.log("Response ok:", response.ok);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Campaign created successfully:", result);
 
-        // Form'u reset et
         reset();
         setShowCreateForm(false);
+        setFieldErrors({
+          title: "",
+          description: "",
+          budget: "",
+          startDate: "",
+          endDate: "",
+        });
         fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Error response:", errorData);
 
         if (errorData.error?.message) {
           toast.error(`Campaign creation failed: ${errorData.error.message}`);
@@ -318,16 +362,15 @@ export default function Dashboard() {
   const createInfluencer = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      console.log("=== INFLUENCER FORM SUBMIT ===");
-      console.log("Influencer form data:", influencerForm);
+      if (!validateInfluencerForm(influencerForm)) {
+        toast.error("Please fill the fields");
+        return;
+      }
 
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
-      console.log("Influencer session access token exists:", !!accessToken);
 
       const response = await fetch("/api/trpc/influencers.create", {
         method: "POST",
@@ -338,19 +381,19 @@ export default function Dashboard() {
         body: JSON.stringify({ input: influencerForm }),
       });
 
-      console.log("Influencer response status:", response.status);
-      console.log("Influencer response ok:", response.ok);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Influencer created successfully:", result);
 
         setInfluencerForm({ name: "", followerCount: 0, engagementRate: 0 });
         setShowInfluencerForm(false);
+        setInfluencerFieldErrors({
+          name: "",
+          followerCount: "",
+          engagementRate: "",
+        });
         fetchInfluencers();
       } else {
         const errorData = await response.json();
-        console.error("Influencer error response:", errorData);
         toast.error(
           `Influencer creation failed: ${
             errorData.error?.message || "Unknown error"
@@ -365,16 +408,10 @@ export default function Dashboard() {
 
   const assignInfluencer = async (influencerId: number, campaignId: number) => {
     try {
-      console.log("=== ASSIGN INFLUENCER SUBMIT ===");
-      console.log("Assign data:", { influencerId, campaignId });
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
-      console.log("Assign session access token exists:", !!accessToken);
 
       const response = await fetch("/api/trpc/influencers.assignToCampaign", {
         method: "POST",
@@ -385,22 +422,15 @@ export default function Dashboard() {
         body: JSON.stringify({ input: { influencerId, campaignId } }),
       });
 
-      console.log("Assign response status:", response.status);
-      console.log("Assign response ok:", response.ok);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Influencer assigned successfully:", result);
         toast.success("Influencer assigned successfully!");
 
-        // Modal'ı kapat
         setSelectedCampaign(null);
 
-        // Campaign'leri yeniden fetch et (assigned influencers ile birlikte)
         fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Assign error response:", errorData);
         toast.error(
           `Influencer assignment failed: ${
             errorData.error?.message || "Unknown error"
@@ -413,18 +443,74 @@ export default function Dashboard() {
     }
   };
 
-  const handleEditCampaign = (campaign: Campaign) => {
-    console.log("=== EDIT CAMPAIGN START ===");
-    console.log("Editing campaign:", campaign);
+  const unassignInfluencer = async (
+    influencerId: number,
+    campaignId: number
+  ) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
 
+      const response = await fetch(
+        "/api/trpc/influencers.unassignFromCampaign",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+          },
+          body: JSON.stringify({ input: { influencerId, campaignId } }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.success("Influencer unassigned successfully!");
+
+        fetchCampaigns();
+      } else {
+        const errorData = await response.json();
+        toast.error(
+          `Influencer unassignment failed: ${
+            errorData.error?.message || "Unknown error"
+          }`
+        );
+      }
+    } catch (error) {
+      console.error("Error unassigning influencer:", error);
+      toast.error(`Influencer unassignment failed: ${error}`);
+    }
+  };
+
+  const handleEditCampaign = (campaign: Campaign) => {
     setEditingCampaign(campaign);
 
-    // Form'u campaign data ile doldur
     setValueEdit("title", campaign.title);
     setValueEdit("description", campaign.description || "");
     setValueEdit("budget", campaign.budget || "");
-    setValueEdit("startDate", campaign.startDate || "");
-    setValueEdit("endDate", campaign.endDate || "");
+
+    if (campaign.startDate) {
+      const startDate = new Date(campaign.startDate)
+        .toISOString()
+        .split("T")[0];
+      setValueEdit("startDate", startDate);
+
+      setTimeout(() => {
+        const endDateInput = document.getElementById(
+          "endDateEdit"
+        ) as HTMLInputElement;
+        if (endDateInput) {
+          endDateInput.min = startDate;
+        }
+      }, 100);
+    }
+
+    if (campaign.endDate) {
+      const endDate = new Date(campaign.endDate).toISOString().split("T")[0];
+      setValueEdit("endDate", endDate);
+    }
 
     setShowEditForm(true);
   };
@@ -433,16 +519,34 @@ export default function Dashboard() {
     if (!editingCampaign) return;
 
     try {
-      console.log("=== UPDATE CAMPAIGN START ===");
-      console.log("Update data:", data);
-      console.log("Editing campaign ID:", editingCampaign.id);
-
       if (!user) {
         toast.error("No user found. Please log in again.");
         return;
       }
 
-      // Clean the data before sending
+      if (
+        !data.title?.trim() ||
+        !data.description?.trim() ||
+        !data.budget?.trim() ||
+        !data.startDate ||
+        !data.endDate
+      ) {
+        setError("Please fill the fields");
+        toast.error("Please fill the fields");
+        return;
+      }
+
+      if (data.startDate && data.endDate) {
+        const startDate = new Date(data.startDate);
+        const endDate = new Date(data.endDate);
+
+        if (endDate < startDate) {
+          setError("Bitiş tarihi başlangıç tarihinden önce olamaz");
+          toast.error("Bitiş tarihi başlangıç tarihinden önce olamaz");
+          return;
+        }
+      }
+
       const cleanData = {
         id: editingCampaign.id,
         title: data.title.trim(),
@@ -452,15 +556,10 @@ export default function Dashboard() {
         endDate: data.endDate || "",
       };
 
-      console.log("Clean update data:", cleanData);
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
-      console.log("Update session access token exists:", !!accessToken);
 
       const response = await fetch("/api/trpc/campaigns.update", {
         method: "POST",
@@ -471,22 +570,23 @@ export default function Dashboard() {
         body: JSON.stringify({ input: cleanData }),
       });
 
-      console.log("Update response status:", response.status);
-      console.log("Update response ok:", response.ok);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Campaign updated successfully:", result);
         toast.success("Campaign updated successfully!");
 
-        // Form'u reset et ve modal'ı kapat
         resetEdit();
         setShowEditForm(false);
         setEditingCampaign(null);
+        setFieldErrors({
+          title: "",
+          description: "",
+          budget: "",
+          startDate: "",
+          endDate: "",
+        });
         fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Update error response:", errorData);
         toast.error(
           `Campaign update failed: ${
             errorData.error?.message || "Unknown error"
@@ -510,10 +610,6 @@ export default function Dashboard() {
     if (!confirmDelete) return;
 
     try {
-      console.log("=== DELETE CAMPAIGN START ===");
-      console.log("Deleting campaign ID:", campaignId);
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -528,18 +624,13 @@ export default function Dashboard() {
         body: JSON.stringify({ input: { id: campaignId } }),
       });
 
-      console.log("Delete response status:", response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Campaign deleted successfully:", result);
         toast.success("Campaign deleted successfully!");
 
-        // Campaign'leri yeniden fetch et
         fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Delete error response:", errorData);
         toast.error(
           `Campaign deletion failed: ${
             errorData.error?.message || "Unknown error"
@@ -553,12 +644,8 @@ export default function Dashboard() {
   };
 
   const handleEditInfluencer = (influencer: Influencer) => {
-    console.log("=== EDIT INFLUENCER START ===");
-    console.log("Editing influencer:", influencer);
-
     setEditingInfluencer(influencer);
 
-    // Form'u influencer data ile doldur
     setInfluencerEditForm({
       name: influencer.name,
       followerCount: influencer.followerCount,
@@ -573,16 +660,16 @@ export default function Dashboard() {
     if (!editingInfluencer) return;
 
     try {
-      console.log("=== UPDATE INFLUENCER START ===");
-      console.log("Update data:", influencerEditForm);
-      console.log("Editing influencer ID:", editingInfluencer.id);
-
       if (!user) {
         toast.error("No user found. Please log in again.");
         return;
       }
 
-      // Clean the data before sending
+      if (!validateInfluencerForm(influencerEditForm)) {
+        toast.error("Please fill the fields");
+        return;
+      }
+
       const cleanData = {
         id: editingInfluencer.id,
         name: influencerEditForm.name.trim(),
@@ -590,18 +677,10 @@ export default function Dashboard() {
         engagementRate: influencerEditForm.engagementRate,
       };
 
-      console.log("Clean update data:", cleanData);
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
-
-      console.log(
-        "Update influencer session access token exists:",
-        !!accessToken
-      );
 
       const response = await fetch("/api/trpc/influencers.update", {
         method: "POST",
@@ -612,14 +691,10 @@ export default function Dashboard() {
         body: JSON.stringify({ input: cleanData }),
       });
 
-      console.log("Update influencer response status:", response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Influencer updated successfully:", result);
         toast.success("Influencer updated successfully!");
 
-        // Form'u reset et ve modal'ı kapat
         setInfluencerEditForm({
           name: "",
           followerCount: 0,
@@ -627,11 +702,15 @@ export default function Dashboard() {
         });
         setShowEditInfluencerForm(false);
         setEditingInfluencer(null);
+        setInfluencerFieldErrors({
+          name: "",
+          followerCount: "",
+          engagementRate: "",
+        });
         fetchInfluencers();
-        fetchCampaigns(); // Campaign'lerdeki assigned influencer bilgilerini güncelle
+        fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Update influencer error response:", errorData);
         toast.error(
           `Influencer update failed: ${
             errorData.error?.message || "Unknown error"
@@ -655,10 +734,6 @@ export default function Dashboard() {
     if (!confirmDelete) return;
 
     try {
-      console.log("=== DELETE INFLUENCER START ===");
-      console.log("Deleting influencer ID:", influencerId);
-
-      // Supabase session'dan token al
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -673,19 +748,14 @@ export default function Dashboard() {
         body: JSON.stringify({ input: { id: influencerId } }),
       });
 
-      console.log("Delete influencer response status:", response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log("Influencer deleted successfully:", result);
         toast.success("Influencer deleted successfully!");
 
-        // Influencer'ları yeniden fetch et
         fetchInfluencers();
-        fetchCampaigns(); // Campaign'lerdeki assigned influencer bilgilerini güncelle
+        fetchCampaigns();
       } else {
         const errorData = await response.json();
-        console.error("Delete influencer error response:", errorData);
         toast.error(
           `Influencer deletion failed: ${
             errorData.error?.message || "Unknown error"
@@ -708,19 +778,24 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-200">
       {/* Header */}
-      <header className=" bg-gray-100 shadow-sm border-b">
+      <header className="bg-gray-100 shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-16 py-4 sm:py-0 space-y-4 sm:space-y-0">
             <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold text-gray-900">
+              <Link
+                href="/"
+                className="text-xl sm:text-2xl font-bold text-gray-900"
+              >
                 Campaign Management
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Welcome, {user.email}</span>
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+              <span className="text-sm sm:text-base text-gray-700 text-center sm:text-left">
+                Welcome, {user.email}
+              </span>
               <button
                 onClick={handleLogout}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
               >
                 Logout
               </button>
@@ -730,42 +805,36 @@ export default function Dashboard() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Campaigns Section */}
         <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900">Campaigns</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Campaigns
+            </h2>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              className="bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base w-full sm:w-auto"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
               <span>{showCreateForm ? "Cancel" : "Create Campaign"}</span>
             </button>
           </div>
 
           {showCreateForm && (
-            <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Create New Campaign
               </h3>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
+                  {error}
+                </div>
+              )}
               <form
                 onSubmit={handleSubmit(createCampaign)}
                 className="space-y-4"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Title
@@ -775,12 +844,14 @@ export default function Dashboard() {
                       placeholder="Campaign Title"
                       {...register("title")}
                       className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
-                        errors.title ? "border-red-500" : "border-gray-300"
+                        errors.title || fieldErrors.title
+                          ? "border-red-500"
+                          : "border-gray-300"
                       }`}
                     />
-                    {errors.title && (
+                    {(errors.title || fieldErrors.title) && (
                       <p className="text-red-500 text-sm mt-1">
-                        {errors.title.message}
+                        {errors.title?.message || fieldErrors.title}
                       </p>
                     )}
                   </div>
@@ -792,8 +863,17 @@ export default function Dashboard() {
                       type="text"
                       placeholder="Budget"
                       {...register("budget")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        fieldErrors.budget
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {fieldErrors.budget && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.budget}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,18 +882,57 @@ export default function Dashboard() {
                     <input
                       type="date"
                       {...register("startDate")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 ${
+                        fieldErrors.startDate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      onChange={(e) => {
+                        const endDateInput = document.getElementById(
+                          "endDate"
+                        ) as HTMLInputElement;
+                        if (endDateInput && e.target.value) {
+                          endDateInput.min = e.target.value;
+                        }
+
+                        if (
+                          endDateInput &&
+                          endDateInput.value &&
+                          e.target.value
+                        ) {
+                          const startDate = new Date(e.target.value);
+                          const endDate = new Date(endDateInput.value);
+                          if (endDate < startDate) {
+                            endDateInput.value = "";
+                          }
+                        }
+                      }}
                     />
+                    {fieldErrors.startDate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.startDate}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       End Date
                     </label>
                     <input
+                      id="endDate"
                       type="date"
                       {...register("endDate")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 ${
+                        fieldErrors.endDate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {fieldErrors.endDate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.endDate}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -823,14 +942,23 @@ export default function Dashboard() {
                   <textarea
                     placeholder="Campaign Description"
                     {...register("description")}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      fieldErrors.description
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     rows={3}
                   />
+                  {fieldErrors.description && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {fieldErrors.description}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto"
                 >
                   {isSubmitting ? "Creating..." : "Create Campaign"}
                 </button>
@@ -844,11 +972,16 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Edit Campaign: &ldquo;{editingCampaign?.title}&rdquo;
               </h3>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm mb-4">
+                  {error}
+                </div>
+              )}
               <form
                 onSubmit={handleSubmitEdit(updateCampaign)}
                 className="space-y-4"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Title
@@ -875,8 +1008,17 @@ export default function Dashboard() {
                       type="text"
                       placeholder="Budget"
                       {...registerEdit("budget")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        fieldErrors.budget
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {fieldErrors.budget && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.budget}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -885,18 +1027,58 @@ export default function Dashboard() {
                     <input
                       type="date"
                       {...registerEdit("startDate")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 ${
+                        fieldErrors.startDate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
+                      onChange={(e) => {
+                        const endDateInput = document.getElementById(
+                          "endDateEdit"
+                        ) as HTMLInputElement;
+                        if (endDateInput && e.target.value) {
+                          endDateInput.min = e.target.value;
+                        }
+
+                        if (
+                          endDateInput &&
+                          endDateInput.value &&
+                          e.target.value
+                        ) {
+                          const startDate = new Date(e.target.value);
+                          const endDate = new Date(endDateInput.value);
+                          if (endDate < startDate) {
+                            endDateInput.value = "";
+                            setValueEdit("endDate", "");
+                          }
+                        }
+                      }}
                     />
+                    {fieldErrors.startDate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.startDate}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       End Date
                     </label>
                     <input
+                      id="endDateEdit"
                       type="date"
                       {...registerEdit("endDate")}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 ${
+                        fieldErrors.endDate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                     />
+                    {fieldErrors.endDate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {fieldErrors.endDate}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -906,15 +1088,24 @@ export default function Dashboard() {
                   <textarea
                     placeholder="Campaign Description"
                     {...registerEdit("description")}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      fieldErrors.description
+                        ? "border-red-500"
+                        : "border-gray-300"
+                    }`}
                     rows={3}
                   />
+                  {fieldErrors.description && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {fieldErrors.description}
+                    </p>
+                  )}
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
                     disabled={isSubmittingEdit}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base w-full sm:w-auto"
                   >
                     {isSubmittingEdit ? "Updating..." : "Update Campaign"}
                   </button>
@@ -925,7 +1116,7 @@ export default function Dashboard() {
                       setEditingCampaign(null);
                       resetEdit();
                     }}
-                    className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                    className="bg-gray-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
                   >
                     Cancel
                   </button>
@@ -934,11 +1125,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {campaigns.map((campaign) => (
               <div
                 key={campaign.id}
-                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow"
               >
                 <h3 className="font-semibold text-xl text-gray-900 mb-3">
                   {campaign.title}
@@ -980,15 +1171,41 @@ export default function Dashboard() {
                             .map((influencer) => (
                               <div
                                 key={influencer.id}
-                                className="flex items-center justify-between text-xs text-gray-600"
+                                className="flex items-center justify-between text-xs text-gray-600 group"
                               >
-                                <span className="font-medium">
-                                  {influencer.name}
-                                </span>
-                                <span>
-                                  {influencer.followerCount.toLocaleString()}{" "}
-                                  followers
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium">
+                                    {influencer.name}
+                                  </span>
+                                  <span className="text-gray-400">
+                                    {influencer.followerCount.toLocaleString()}{" "}
+                                    followers
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    unassignInfluencer(
+                                      influencer.id,
+                                      campaign.id
+                                    )
+                                  }
+                                  className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-full hover:bg-red-100 border border-red-200 hover:border-red-300"
+                                  title="Remove assignment"
+                                >
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2.5}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </button>
                               </div>
                             ))}
                           {campaign.assignedInfluencers.length > 3 && (
@@ -1002,53 +1219,55 @@ export default function Dashboard() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <button
                     onClick={() => setSelectedCampaign(campaign)}
                     className="flex-1 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors font-medium text-sm"
                   >
                     Assign Influencers
                   </button>
-                  <button
-                    onClick={() => handleEditCampaign(campaign)}
-                    className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-                    title="Edit Campaign"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditCampaign(campaign)}
+                      className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                      title="Edit Campaign"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() =>
-                      handleDeleteCampaign(campaign.id, campaign.title)
-                    }
-                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
-                    title="Delete Campaign"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleDeleteCampaign(campaign.id, campaign.title)
+                      }
+                      className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors font-medium text-sm"
+                      title="Delete Campaign"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1057,25 +1276,14 @@ export default function Dashboard() {
 
         {/* Influencers Section */}
         <div className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900">Influencers</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Influencers
+            </h2>
             <button
               onClick={() => setShowInfluencerForm(!showInfluencerForm)}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2"
+              className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base w-full sm:w-auto"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
               <span>{showInfluencerForm ? "Cancel" : "Add Influencer"}</span>
             </button>
           </div>
@@ -1086,7 +1294,7 @@ export default function Dashboard() {
                 Add New Influencer
               </h3>
               <form onSubmit={createInfluencer} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Name
@@ -1101,9 +1309,18 @@ export default function Dashboard() {
                           name: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.name
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       required
                     />
+                    {influencerFieldErrors.name && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.name}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1119,9 +1336,18 @@ export default function Dashboard() {
                           followerCount: parseInt(e.target.value),
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.followerCount
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       min="0"
                     />
+                    {influencerFieldErrors.followerCount && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.followerCount}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1137,16 +1363,25 @@ export default function Dashboard() {
                           engagementRate: parseFloat(e.target.value),
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-500 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.engagementRate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       min="0"
                       max="100"
                       step="0.1"
                     />
+                    {influencerFieldErrors.engagementRate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.engagementRate}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <button
                   type="submit"
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                  className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
                 >
                   Add Influencer
                 </button>
@@ -1161,7 +1396,7 @@ export default function Dashboard() {
                 Edit Influencer: &ldquo;{editingInfluencer?.name}&rdquo;
               </h3>
               <form onSubmit={updateInfluencer} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Name
@@ -1176,9 +1411,18 @@ export default function Dashboard() {
                           name: e.target.value,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.name
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       required
                     />
+                    {influencerFieldErrors.name && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.name}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1194,9 +1438,18 @@ export default function Dashboard() {
                           followerCount: parseInt(e.target.value) || 0,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.followerCount
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       min="0"
                     />
+                    {influencerFieldErrors.followerCount && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.followerCount}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1212,17 +1465,26 @@ export default function Dashboard() {
                           engagementRate: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                        influencerFieldErrors.engagementRate
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      }`}
                       min="0"
                       max="100"
                       step="0.1"
                     />
+                    {influencerFieldErrors.engagementRate && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {influencerFieldErrors.engagementRate}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     type="submit"
-                    className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
                   >
                     Update Influencer
                   </button>
@@ -1237,7 +1499,7 @@ export default function Dashboard() {
                         engagementRate: 0,
                       });
                     }}
-                    className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+                    className="bg-gray-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors text-sm sm:text-base w-full sm:w-auto"
                   >
                     Cancel
                   </button>
@@ -1246,11 +1508,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {influencers.map((influencer) => (
               <div
                 key={influencer.id}
-                className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow"
+                className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow"
               >
                 <h3 className="font-semibold text-lg text-gray-900 mb-3">
                   {influencer.name}
@@ -1326,7 +1588,7 @@ export default function Dashboard() {
           onClick={() => setSelectedCampaign(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full max-h-[80vh] overflow-hidden"
+            className="bg-white rounded-xl shadow-2xl p-4 sm:p-6 max-w-md w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
@@ -1365,7 +1627,7 @@ export default function Dashboard() {
                     {selectedCampaign.assignedInfluencers.map((influencer) => (
                       <div
                         key={influencer.id}
-                        className="flex justify-between items-center p-2 bg-green-50 border border-green-200 rounded-lg"
+                        className="flex justify-between items-center p-2 bg-green-50 border border-green-200 rounded-lg group"
                       >
                         <div>
                           <p className="font-medium text-green-800 text-sm">
@@ -1376,9 +1638,35 @@ export default function Dashboard() {
                             followers
                           </p>
                         </div>
-                        <span className="text-xs text-green-600 font-medium bg-green-100 px-2 py-1 rounded">
-                          ✓ Assigned
-                        </span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-green-600 font-medium bg-green-100 px-2 py-1 rounded">
+                            ✓ Assigned
+                          </span>
+                          <button
+                            onClick={() =>
+                              unassignInfluencer(
+                                influencer.id,
+                                selectedCampaign.id
+                              )
+                            }
+                            className="text-red-600 hover:text-red-800 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-full hover:bg-red-100 border border-red-200 hover:border-red-300"
+                            title="Remove assignment"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2.5}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

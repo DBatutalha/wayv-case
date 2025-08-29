@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import toast, { Toaster } from "react-hot-toast";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -11,7 +12,57 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [emailExists, setEmailExists] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const router = useRouter();
+
+  // Email kontrolü için debounce fonksiyonu
+  useEffect(() => {
+    const checkEmail = async () => {
+      if (!email || email.length < 3) {
+        setEmailExists(false);
+        return;
+      }
+
+      // Email formatı kontrolü
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setEmailExists(false);
+        return;
+      }
+
+      setIsCheckingEmail(true);
+      setEmailExists(false);
+
+      try {
+        // API endpoint ile email kontrolü
+        const response = await fetch("/api/check-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setEmailExists(data.exists);
+
+          if (data.exists) {
+            toast.error("Bu email adresi zaten kullanımda!");
+          }
+        }
+      } catch (error) {
+        console.error("Email check failed:", error);
+      } finally {
+        setIsCheckingEmail(false);
+      }
+    };
+
+    // Debounce: 500ms bekle
+    const timeoutId = setTimeout(checkEmail, 500);
+    return () => clearTimeout(timeoutId);
+  }, [email]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,13 +71,20 @@ export default function SignUp() {
     setSuccess("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError("Şifreler eşleşmiyor");
       setIsLoading(false);
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters long");
+      setError("Şifre en az 6 karakter olmalıdır");
+      setIsLoading(false);
+      return;
+    }
+
+    if (emailExists) {
+      setError("Bu email adresi zaten kullanımda");
+      toast.error("Bu email adresi zaten kullanımda");
       setIsLoading(false);
       return;
     }
@@ -35,13 +93,17 @@ export default function SignUp() {
 
     if (!error) {
       setSuccess(
-        "Account created successfully! Please check your email to verify your account."
+        "Hesap başarıyla oluşturuldu! Lütfen email adresinizi kontrol ederek hesabınızı doğrulayın."
+      );
+      toast.success(
+        "Hesap başarıyla oluşturuldu! Email adresinizi kontrol edin."
       );
       setTimeout(() => {
         router.push("/login");
       }, 2000);
     } else {
       setError(error.message);
+      toast.error(error.message);
     }
     setIsLoading(false);
   };
@@ -86,15 +148,82 @@ export default function SignUp() {
               >
                 Email Address
               </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500"
-                required
-              />
+              <div className="relative">
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                    emailExists
+                      ? "border-red-500 focus:ring-red-500"
+                      : isCheckingEmail
+                      ? "border-yellow-500 focus:ring-yellow-500"
+                      : "border-gray-300"
+                  }`}
+                  required
+                  disabled={isCheckingEmail}
+                />
+                {isCheckingEmail && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+                {emailExists && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <svg
+                      className="w-5 h-5 text-red-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              {isCheckingEmail && (
+                <p className="text-sm text-blue-600 mt-1 flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-1 animate-spin"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  Email kontrol ediliyor...
+                </p>
+              )}
+              {emailExists && (
+                <p className="text-sm text-red-600 mt-1 flex items-center">
+                  <svg
+                    className="w-4 h-4 mr-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Bu email adresi zaten kullanımda
+                </p>
+              )}
             </div>
 
             <div>
@@ -135,7 +264,7 @@ export default function SignUp() {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isCheckingEmail || emailExists}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? "Creating Account..." : "Create Account"}
@@ -163,6 +292,28 @@ export default function SignUp() {
           </Link>
         </div>
       </div>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+          success: {
+            duration: 3000,
+            style: {
+              background: "#10B981",
+            },
+          },
+          error: {
+            duration: 5000,
+            style: {
+              background: "#EF4444",
+            },
+          },
+        }}
+      />
     </div>
   );
 }
