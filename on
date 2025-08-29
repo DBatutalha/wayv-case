@@ -1,0 +1,40 @@
+[33mcommit 2a87804294fa84561d1edb3a9bb1cbce1f698ad9[m
+Author: DBatutalha <batu.talha.dygn@gmail.com>
+Date:   Fri Aug 29 21:47:22 2025 +0300
+
+    feat: Complete campaign management app with Netlify deployment config
+    
+    - Add full-stack campaign and influencer management system
+    - Implement React Hook Form with Zod validation
+    - Add tRPC API with Supabase authentication
+    - Include Drizzle ORM with PostgreSQL database
+    - Add React Hot Toast notifications
+    - Configure Netlify deployment with standalone output
+    - Add comprehensive CRUD operations for campaigns and influencers
+    - Implement campaign-influencer assignment system
+
+.env
+.env.example
+.env.local
+.gitignore
+README.md
+app/api/trpc/[trpc]/route.ts
+app/dashboard/page.tsx
+app/globals.css
+app/layout.tsx
+app/login/page.tsx
+app/page.tsx
+app/signup/page.tsx
+drizzle.config.ts
+drizzle/schema.ts
+lib/drizzle.ts
+lib/supabase.ts
+netlify.toml
+next.config.ts
+package-lock.json
+package.json
+server/context.ts
+server/routers/app.ts
+server/routers/campaigns.ts
+server/routers/influencers.ts
+server/trpc.ts

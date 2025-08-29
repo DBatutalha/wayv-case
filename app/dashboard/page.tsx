@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -108,6 +108,103 @@ export default function Dashboard() {
     engagementRate: 0,
   });
 
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      // Supabase session'dan token al
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      const response = await fetch("/api/trpc/campaigns.list", {
+        headers: {
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        },
+      });
+      const data = await response.json();
+      if (data.result?.data) {
+        const campaignsData = data.result.data;
+
+        // Local fetchCampaignInfluencers function
+        const getCampaignInfluencers = async (
+          campaignId: number
+        ): Promise<Influencer[]> => {
+          try {
+            const response = await fetch(
+              `/api/trpc/influencers.byCampaign?input=${encodeURIComponent(
+                JSON.stringify({ campaignId })
+              )}`,
+              {
+                method: "GET",
+                headers: {
+                  ...(accessToken && {
+                    Authorization: `Bearer ${accessToken}`,
+                  }),
+                },
+              }
+            );
+
+            if (response.ok) {
+              const data = await response.json();
+              const campaignInfluencerIds = data.result?.data || [];
+              const assignedInfluencers = influencers.filter((inf) =>
+                campaignInfluencerIds.some(
+                  (ci: { influencerId: number }) => ci.influencerId === inf.id
+                )
+              );
+              return assignedInfluencers;
+            } else {
+              return [];
+            }
+          } catch (error) {
+            console.error("Error fetching campaign influencers:", error);
+            return [];
+          }
+        };
+
+        // Her campaign için assigned influencers'ı fetch et
+        const campaignsWithInfluencers = await Promise.all(
+          campaignsData.map(async (campaign: Campaign) => {
+            const assignedInfluencers = await getCampaignInfluencers(
+              campaign.id
+            );
+            return {
+              ...campaign,
+              assignedInfluencers,
+            };
+          })
+        );
+
+        setCampaigns(campaignsWithInfluencers);
+      }
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+    }
+  }, [influencers]);
+
+  const fetchInfluencers = useCallback(async () => {
+    try {
+      // Supabase session'dan token al
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      const response = await fetch("/api/trpc/influencers.list", {
+        headers: {
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        },
+      });
+      const data = await response.json();
+      if (data.result?.data) {
+        setInfluencers(data.result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching influencers:", error);
+    }
+  }, []);
+
+  // useEffect'i tüm callback fonksiyonlarından sonra tanımlıyoruz
   useEffect(() => {
     const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
@@ -138,117 +235,7 @@ export default function Dashboard() {
     };
 
     getUser();
-  }, []);
-
-  const fetchCampaigns = async () => {
-    try {
-      // Supabase session'dan token al
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      const response = await fetch("/api/trpc/campaigns.list", {
-        headers: {
-          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        },
-      });
-      const data = await response.json();
-      if (data.result?.data) {
-        const campaignsData = data.result.data;
-
-        // Her campaign için assigned influencers'ı fetch et
-        const campaignsWithInfluencers = await Promise.all(
-          campaignsData.map(async (campaign: Campaign) => {
-            const assignedInfluencers = await fetchCampaignInfluencers(
-              campaign.id
-            );
-            return {
-              ...campaign,
-              assignedInfluencers,
-            };
-          })
-        );
-
-        setCampaigns(campaignsWithInfluencers);
-      }
-    } catch (error) {
-      console.error("Error fetching campaigns:", error);
-    }
-  };
-
-  const fetchInfluencers = async () => {
-    try {
-      // Supabase session'dan token al
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      const response = await fetch("/api/trpc/influencers.list", {
-        headers: {
-          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        },
-      });
-      const data = await response.json();
-      if (data.result?.data) {
-        setInfluencers(data.result.data);
-      }
-    } catch (error) {
-      console.error("Error fetching influencers:", error);
-    }
-  };
-
-  const fetchCampaignInfluencers = async (
-    campaignId: number
-  ): Promise<Influencer[]> => {
-    try {
-      console.log("=== FETCHING CAMPAIGN INFLUENCERS ===");
-      console.log("Campaign ID:", campaignId);
-
-      // Supabase session'dan token al
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      const response = await fetch(
-        `/api/trpc/influencers.byCampaign?input=${encodeURIComponent(
-          JSON.stringify({ campaignId })
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-          },
-        }
-      );
-
-      console.log("Campaign influencers response status:", response.status);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Campaign influencers data:", data);
-
-        // Campaign influencers response'undan influencer ID'leri al
-        const campaignInfluencerIds = data.result?.data || [];
-
-        // Bu ID'lere sahip influencer'ları bul
-        const assignedInfluencers = influencers.filter((inf) =>
-          campaignInfluencerIds.some((ci: any) => ci.influencerId === inf.id)
-        );
-
-        console.log("Assigned influencers:", assignedInfluencers);
-        return assignedInfluencers;
-      } else {
-        console.error("Error fetching campaign influencers");
-        return [];
-      }
-    } catch (error) {
-      console.error("Error fetching campaign influencers:", error);
-      return [];
-    }
-  };
+  }, [fetchCampaigns, fetchInfluencers]);
 
   const createCampaign = async (data: CampaignFormData) => {
     try {
@@ -855,7 +842,7 @@ export default function Dashboard() {
           {showEditForm && (
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Edit Campaign: "{editingCampaign?.title}"
+                Edit Campaign: &ldquo;{editingCampaign?.title}&rdquo;
               </h3>
               <form
                 onSubmit={handleSubmitEdit(updateCampaign)}
@@ -1171,7 +1158,7 @@ export default function Dashboard() {
           {showEditInfluencerForm && (
             <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Edit Influencer: "{editingInfluencer?.name}"
+                Edit Influencer: &ldquo;{editingInfluencer?.name}&rdquo;
               </h3>
               <form onSubmit={updateInfluencer} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
