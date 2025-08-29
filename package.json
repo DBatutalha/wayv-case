@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postbuild": "cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/"
+    "postbuild": "mkdir -p .next/standalone/.next && cp -a .next/static .next/standalone/.next/ && cp -a public .next/standalone/"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

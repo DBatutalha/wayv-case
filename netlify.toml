@@ -3,7 +3,7 @@
   command = "npm run build"
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
 
 [[redirects]]
   from = "/api/*"
@@ -17,6 +17,6 @@
 
 [functions]
   node_bundler = "esbuild"
-  
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
