@@ -1,22 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Netlify için output ayarları
+  // Netlify için output ayarı: standalone
   output: "standalone",
 
-  // Static export için (eğer server functions kullanmayacaksanız)
-  // trailingSlash: true,
-  // output: 'export',
-
-  // API routes için - düzeltildi
+  // API routes için external paketler
   serverExternalPackages: ["postgres", "drizzle-orm"],
 
-  // ESLint hatalarını geçici olarak devre dışı bırak
+  // ESLint hatalarını build sırasında yoksay
   eslint: {
     ignoreDuringBuilds: true,
   },
 
-  // TypeScript hatalarını geçici olarak devre dışı bırak
+  // TypeScript hatalarını build sırasında yoksay
   typescript: {
     ignoreBuildErrors: true,
   },
