@@ -1,245 +1,199 @@
-# Campaign Management Mini-App
+# 🚀 Campaign Management App
 
-A full-stack web application for managing marketing campaigns and influencer partnerships. Built with Next.js 15, tRPC, Supabase, and Drizzle ORM.
+Modern, full-stack kampanya ve influencer yönetim sistemi. Next.js 15, tRPC, Supabase ve Drizzle ORM kullanılarak geliştirilmiştir.
 
-## 🚀 Features
+## ✨ Özellikler
 
-- **Authentication**: User signup/login with Supabase Auth
-- **Campaign Management**: Create, view, edit, and delete campaigns
-- **Influencer Management**: Add influencers with follower count and engagement rate
-- **Campaign Assignment**: Assign influencers to campaigns
-- **Responsive UI**: Modern, mobile-friendly interface built with Tailwind CSS
+### 🎯 **Kampanya Yönetimi**
+- ✅ Kampanya oluşturma, düzenleme ve silme
+- ✅ Detaylı kampanya bilgileri (başlık, açıklama, bütçe, tarihler)
+- ✅ Kampanyalara influencer atama
+- ✅ Atanmış influencer'ları görüntüleme
 
-## 🛠️ Tech Stack
+### 👥 **Influencer Yönetimi**
+- ✅ Influencer ekleme, düzenleme ve silme
+- ✅ Follower sayısı ve engagement oranı takibi
+- ✅ Kampanya atama sistemi
+- ✅ Detaylı influencer profilleri
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS v4
-- **Backend**: tRPC, Node.js
-- **Database**: PostgreSQL (Supabase)
-- **ORM**: Drizzle ORM
-- **Authentication**: Supabase Auth
-- **Language**: TypeScript
+### 🔐 **Kimlik Doğrulama**
+- ✅ Supabase Auth ile güvenli giriş/kayıt
+- ✅ Session yönetimi
+- ✅ Kullanıcı bazlı veri izolasyonu
 
-## 📋 Prerequisites
+### 🎨 **Modern UI/UX**
+- ✅ React Hot Toast bildirimleri
+- ✅ React Hook Form ile form yönetimi
+- ✅ Tailwind CSS ile responsive tasarım
+- ✅ Modern modal ve dropdown'lar
 
-- Node.js 18+
-- npm or yarn
-- Supabase account and project
-- PostgreSQL database (or use Supabase's hosted solution)
+## 🛠️ Teknoloji Yığını
 
-## 🚀 Quick Start
+### **Frontend**
+- **Next.js 15** - App Router ile
+- **React 19** - Modern React özellikleri
+- **TypeScript** - Type safety
+- **Tailwind CSS v4** - Styling
+- **React Hook Form** - Form yönetimi
+- **React Hot Toast** - Bildirimler
 
-### 1. Clone the Repository
+### **Backend**
+- **tRPC** - Type-safe API
+- **Zod** - Schema validation
+- **Drizzle ORM** - Database ORM
+- **PostgreSQL** - Database
 
+### **Authentication & Database**
+- **Supabase** - Auth ve Database hosting
+- **Session Pooler** - Production database connection
+
+## 🚀 Kurulum
+
+### **1. Repository'yi Clone Edin**
 ```bash
-git clone <your-repo-url>
-cd campaign-app
+git clone https://github.com/DBatutalha/wayv-case.git
+cd wayv-case
 ```
 
-### 2. Install Dependencies
-
+### **2. Dependencies Yükleyin**
 ```bash
 npm install
 ```
 
-### 3. Environment Setup
-
-Create a `.env.local` file in the root directory:
-
+### **3. Environment Variables**
+`.env.local` dosyası oluşturun:
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 
-# Database Connection (Use Session Pooler for IPv4 compatibility)
-DATABASE_URL=postgresql://postgres.your_project_ref:your_password@aws-1-eu-north-1.pooler.supabase.com:5432/postgres?sslmode=require
+# Database Connection
+DATABASE_URL=your-postgresql-connection-string
 ```
 
-### 4. Database Setup
-
-Run the database migrations:
-
+### **4. Database Schema**
 ```bash
 npx drizzle-kit push
 ```
 
-### 5. Start Development Server
-
+### **5. Development Server**
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Uygulama [http://localhost:3000](http://localhost:3000) adresinde çalışacaktır.
 
-## 🔧 Supabase Configuration
-
-### 1. Create Supabase Project
-
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Note your project URL and anon key from Settings → API
-
-### 2. Database Connection
-
-For IPv4 compatibility, use the **Session Pooler** connection string:
-
-1. Go to Project Settings → Database
-2. Copy the "Session pooler (Shared Pooler)" connection string
-3. Replace `[YOUR-PASSWORD]` with your database password
-4. Add `?sslmode=require` at the end
-
-### 3. Authentication Setup
-
-1. Go to Authentication → Settings
-2. Configure your site URL (e.g., `http://localhost:3000` for development)
-3. Add redirect URLs for your domains
-
-## 📁 Project Structure
+## 📁 Proje Yapısı
 
 ```
-campaign-app/
 ├── app/                    # Next.js App Router
-│   ├── api/               # API routes
-│   │   └── trpc/         # tRPC endpoints
-│   ├── dashboard/         # Dashboard page
-│   ├── login/            # Login page
-│   ├── signup/           # Signup page
-│   └── layout.tsx        # Root layout
-├── drizzle/               # Database schema and migrations
-│   └── schema.ts         # Drizzle schema definitions
-├── lib/                   # Utility libraries
-│   ├── drizzle.ts        # Database connection
-│   └── supabase.ts       # Supabase client
-├── server/                # tRPC server
-│   ├── context.ts        # tRPC context
-│   ├── trpc.ts           # tRPC configuration
-│   └── routers/          # API route handlers
+│   ├── api/trpc/          # tRPC API routes
+│   ├── dashboard/         # Ana dashboard
+│   ├── login/             # Giriş sayfası
+│   └── signup/            # Kayıt sayfası
+├── server/                # Backend logic
+│   ├── routers/           # tRPC routers
+│   ├── context.ts         # tRPC context
+│   └── trpc.ts            # tRPC setup
+├── drizzle/               # Database schema
+├── lib/                   # Utility functions
 └── public/                # Static assets
 ```
 
-## 🗄️ Database Schema
+## 🌐 Deployment
 
-### Tables
+### **Netlify Deployment**
+1. Repository'yi Netlify'a bağlayın
+2. Build ayarları:
+   - **Build command**: `npm run build`
+   - **Publish directory**: `.next/standalone`
+3. Environment variables'ları ekleyin
+4. Deploy edin
 
-- **campaigns**: Campaign information (title, description, budget, dates)
-- **influencers**: Influencer profiles (name, follower count, engagement rate)
-- **campaign_influencers**: Many-to-many relationship between campaigns and influencers
-
-### Schema Management
-
-```bash
-# Generate migrations
-npx drizzle-kit generate
-
-# Apply migrations
-npx drizzle-kit push
-
-# View database
-npx drizzle-kit studio
-```
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Add environment variables in Vercel dashboard
-4. Deploy!
-
-### Environment Variables for Production
-
+### **Environment Variables (Production)**
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_production_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_production_supabase_anon_key
-DATABASE_URL=your_production_database_url
+NEXT_PUBLIC_SUPABASE_URL=your-production-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-production-anon-key
+DATABASE_URL=your-production-database-url
 ```
 
-### Build Commands
+## 🎯 Kullanım
 
+### **1. Hesap Oluşturun**
+- `/signup` sayfasından kayıt olun
+- Email doğrulaması yapın
+
+### **2. Dashboard'a Gidin**
+- `/dashboard` sayfasından kampanyalarınızı yönetin
+- Influencer'larınızı ekleyin ve yönetin
+
+### **3. Kampanya Oluşturun**
+- "Create Campaign" butonuna tıklayın
+- Kampanya detaylarını doldurun
+- Kaydedin
+
+### **4. Influencer Ekleyin**
+- "Add Influencer" butonuna tıklayın
+- Influencer bilgilerini girin
+- Kaydedin
+
+### **5. Atama Yapın**
+- Kampanya kartında "Assign Influencers" butonuna tıklayın
+- İstediğiniz influencer'ları seçin
+- Atamaları kaydedin
+
+## 🔧 Geliştirme
+
+### **Database Değişiklikleri**
 ```bash
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
+# Schema değişikliklerini uygula
+npx drizzle-kit push
+
+# Database'i sıfırla
+npx drizzle-kit drop
 ```
 
-## 🔒 Security Features
-
-- User authentication with Supabase Auth
-- Row-level security (RLS) in database
-- User-specific data isolation
-- Secure API endpoints with tRPC
-
-## 🧪 Testing
-
+### **Build & Test**
 ```bash
-# Run type checking
-npx tsc --noEmit
-
-# Run linting
-npm run lint
-
-# Check for build errors
+# Production build
 npm run build
+
+# Type checking
+npm run type-check
+
+# Linting
+npm run lint
 ```
 
-## 📱 Responsive Design
+## 📊 Özellikler
 
-The application is fully responsive and works on:
+- [x] **Campaign CRUD** - Tam CRUD operasyonları
+- [x] **Influencer CRUD** - Tam CRUD operasyonları  
+- [x] **Assignment System** - Kampanya-Influencer eşleştirme
+- [x] **Authentication** - Supabase Auth
+- [x] **Form Validation** - React Hook Form + Zod
+- [x] **Toast Notifications** - React Hot Toast
+- [x] **Responsive Design** - Mobile-first
+- [x] **Type Safety** - Full TypeScript
+- [x] **Database ORM** - Drizzle ORM
+- [x] **Production Ready** - Netlify deployment
 
-- Desktop (1024px+)
-- Tablet (768px - 1023px)
-- Mobile (< 768px)
+## 🤝 Katkıda Bulunma
 
-## 🚨 Troubleshooting
+1. Fork edin
+2. Feature branch oluşturun (`git checkout -b feature/amazing-feature`)
+3. Commit edin (`git commit -m 'Add amazing feature'`)
+4. Push edin (`git push origin feature/amazing-feature`)
+5. Pull Request oluşturun
 
-### Common Issues
+## 📄 Lisans
 
-1. **Database Connection Error**: Ensure you're using Session Pooler for IPv4 compatibility
-2. **Authentication Issues**: Check Supabase project settings and redirect URLs
-3. **Build Errors**: Verify all environment variables are set correctly
+Bu proje MIT lisansı altında lisanslanmıştır.
 
-### Debug Commands
+## 👨‍💻 Geliştirici
 
-```bash
-# Check database connection
-npx drizzle-kit push
-
-# Verify environment variables
-echo $DATABASE_URL
-
-# Check Supabase connection
-npm run dev
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🆘 Support
-
-If you encounter any issues:
-
-1. Check the troubleshooting section above
-2. Review Supabase documentation
-3. Open an issue in the repository
-4. Check the console for error messages
-
-## 🔄 Updates
-
-Keep your dependencies updated:
-
-```bash
-npm update
-npx drizzle-kit push
-```
+**Batuhan Talha** - [@DBatutalha](https://github.com/DBatutalha)
 
 ---
 
-Built with ❤️ using Next.js, tRPC, Supabase, and Drizzle ORM.
+⭐ Bu projeyi beğendiyseniz star vermeyi unutmayın!
