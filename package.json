@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
+    "postbuild": "cp -a .next/static .next/standalone/.next/static && cp -a public .next/standalone/public",
     "start": "next start",
-    "lint": "eslint",
-    "postbuild": "cp -a .next/static .next/standalone/.next/static && cp -a public .next/standalone/public"
+    "lint": "eslint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
