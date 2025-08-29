@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "postbuild": "xcopy \".next\\static\" \".next\\standalone\\.next\\static\\\" /E /I /Y && xcopy \"public\" \".next\\standalone\\public\\\" /E /I /Y"
+    "postbuild": "cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
