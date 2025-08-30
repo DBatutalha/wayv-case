@@ -86,7 +86,29 @@ DATABASE_URL=your-postgresql-connection-string
 npx drizzle-kit push
 ```
 
-### **5. Development Server**
+### **5. Mevcut Kullanıcıları Migrate Et (Opsiyonel)**
+
+Eğer Supabase Auth'ta mevcut kullanıcılarınız varsa, bunları users tablosuna kaydetmek için:
+
+```bash
+# Environment variables'ları ayarlayın
+export SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# Migration script'ini çalıştırın
+npm run migrate-users
+```
+
+**Not:** Bu script için `SUPABASE_SERVICE_ROLE_KEY` gereklidir. Supabase Dashboard > Settings > API > Service Role Key'den alabilirsiniz.
+
+### **6. User Creation Test (Opsiyonel)**
+
+User creation işleminin çalıştığını test etmek için:
+
+```bash
+npm run test-users
+```
+
+### **7. Development Server**
 
 ```bash
 npm run dev

@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate-users": "node scripts/migrate-users.js",
+    "test-users": "node scripts/test-user-creation.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

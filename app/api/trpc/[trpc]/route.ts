@@ -11,6 +11,16 @@ const handler = async (req: Request) => {
       const context = await createContext();
       return context;
     },
+    onError: ({ error, path, input, ctx, req, type }) => {
+      console.error("tRPC Error:", {
+        error: error.message,
+        code: error.code,
+        path,
+        input,
+        type,
+        stack: error.stack,
+      });
+    },
   });
 };
 

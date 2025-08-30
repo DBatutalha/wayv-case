@@ -48,16 +48,48 @@ export default function Login() {
     setIsLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (!error) {
-      toast.success("Başarıyla giriş yapıldı!");
-      router.push("/dashboard");
+    if (!error && data.user) {
+      // User'ı users tablosuna kaydet (eğer yoksa)
+      try {
+        const userResponse = await fetch("/api/trpc/users.ensure", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id: data.user.id,
+            email: data.user.email!,
+          }),
+        });
+
+        if (userResponse.ok) {
+          const result = await userResponse.json();
+          console.log("User ensured:", result.result?.data);
+
+          toast.success("Başarıyla giriş yapıldı!");
+          router.push("/dashboard");
+        } else {
+          const errorData = await userResponse.json();
+          console.error("User ensure failed:", errorData);
+          // User kaydedilemese bile login başarılı, dashboard'a yönlendir
+          toast.success("Başarıyla giriş yapıldı!");
+          router.push("/dashboard");
+        }
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+        // Database hatası olsa bile login başarılı, dashboard'a yönlendir
+        toast.success("Başarıyla giriş yapıldı!");
+        router.push("/dashboard");
+      }
     } else {
-      const translatedError = translateErrorMessage(error.message);
+      const translatedError = translateErrorMessage(
+        error?.message || "Giriş yapılırken hata oluştu"
+      );
       setError(translatedError);
       toast.error(translatedError);
     }

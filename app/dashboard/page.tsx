@@ -172,6 +172,21 @@ export default function Dashboard() {
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
 
+      // İlk olarak tüm influencer'ları al
+      const influencersResponse = await fetch("/api/trpc/influencers.list", {
+        headers: {
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+        },
+      });
+
+      let allInfluencers: Influencer[] = [];
+      if (influencersResponse.ok) {
+        const influencersData = await influencersResponse.json();
+        allInfluencers = influencersData.result?.data || [];
+        // State'i de güncelle
+        setInfluencers(allInfluencers);
+      }
+
       const response = await fetch("/api/trpc/campaigns.list", {
         headers: {
           ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
@@ -202,7 +217,8 @@ export default function Dashboard() {
             if (response.ok) {
               const data = await response.json();
               const campaignInfluencerIds = data.result?.data || [];
-              const assignedInfluencers = influencers.filter((inf) =>
+              // allInfluencers'ı kullan (mevcut influencers state'ine bağımlı değil)
+              const assignedInfluencers = allInfluencers.filter((inf) =>
                 campaignInfluencerIds.some(
                   (ci: { influencerId: number }) => ci.influencerId === inf.id
                 )
@@ -234,7 +250,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error fetching campaigns:", error);
     }
-  }, [influencers]);
+  }, []); // influencers dependency'sini kaldırdım
 
   const fetchInfluencers = useCallback(async () => {
     try {
@@ -259,18 +275,73 @@ export default function Dashboard() {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      try {
+        const { data, error } = await supabase.auth.getUser();
 
-      if (error || !data.user) {
+        if (error || !data.user) {
+          window.location.href = "/login";
+        } else {
+          setUser(data.user);
+          // fetchCampaigns artık influencer'ları da alıyor
+          fetchCampaigns();
+        }
+      } catch (error) {
+        console.error("Session check error:", error);
+        await supabase.auth.signOut();
         window.location.href = "/login";
-      } else {
-        setUser(data.user);
-        fetchCampaigns();
-        fetchInfluencers();
       }
     };
 
     getUser();
+
+    // Session değişikliklerini dinle
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
+        if (!session) {
+          setUser(null);
+          window.location.href = "/login";
+        } else {
+          setUser(session.user);
+        }
+      } else if (event === "SIGNED_IN" && session?.user) {
+        setUser(session.user);
+
+        // User'ı users tablosuna kaydet (eğer yoksa)
+        try {
+          const userResponse = await fetch("/api/trpc/users.ensureUser", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              input: {
+                id: session.user.id,
+                email: session.user.email!,
+              },
+            }),
+          });
+
+          if (userResponse.ok) {
+            const result = await userResponse.json();
+            console.log(
+              "User ensured in auth state change:",
+              result.result?.data
+            );
+          } else {
+            console.error(
+              "User ensure failed in auth state change:",
+              await userResponse.json()
+            );
+          }
+        } catch (dbError) {
+          console.error("Database error in auth state change:", dbError);
+        }
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const createCampaign = async (data: CampaignFormData) => {
@@ -783,7 +854,7 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row justify-between items-center h-auto sm:h-16 py-4 sm:py-0 space-y-4 sm:space-y-0">
             <div className="flex items-center">
               <Link
-                href="/"
+                href="/dashboard"
                 className="text-xl sm:text-2xl font-bold text-gray-900"
               >
                 Campaign Management

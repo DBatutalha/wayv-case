@@ -35,20 +35,24 @@ export default function SignUp() {
       setEmailExists(false);
 
       try {
-        // API endpoint ile email kontrolü
-        const response = await fetch("/api/check-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-        });
+        // API endpoint ile email kontrolü (tRPC query endpoint)
+        const response = await fetch(
+          `/api/trpc/users.checkEmail?input=${encodeURIComponent(
+            JSON.stringify({ email })
+          )}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (response.ok) {
           const data = await response.json();
-          setEmailExists(data.exists);
+          setEmailExists(data.result?.data?.exists || false);
 
-          if (data.exists) {
+          if (data.result?.data?.exists) {
             toast.error("Bu email adresi zaten kullanımda!");
           }
         }
@@ -89,21 +93,66 @@ export default function SignUp() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data: authData, error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (!error) {
-      setSuccess(
-        "Hesap başarıyla oluşturuldu! Lütfen email adresinizi kontrol ederek hesabınızı doğrulayın."
-      );
-      toast.success(
-        "Hesap başarıyla oluşturuldu! Email adresinizi kontrol edin."
-      );
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
+    if (!error && authData.user) {
+      // User'ı veritabanına kaydet
+      try {
+        const userData = {
+          id: authData.user.id,
+          email: authData.user.email!,
+        };
+
+        console.log("Sending user data to API:", userData);
+        console.log("User ID:", authData.user.id);
+        console.log("User Email:", authData.user.email);
+        console.log("User ID type:", typeof authData.user.id);
+        console.log("User Email type:", typeof authData.user.email);
+        console.log("JSON stringified data:", JSON.stringify(userData));
+
+        const userResponse = await fetch("/api/trpc/users.create", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(userData),
+        });
+
+        if (userResponse.ok) {
+          setSuccess(
+            "Hesap başarıyla oluşturuldu! Lütfen email adresinizi kontrol ederek hesabınızı doğrulayın."
+          );
+          toast.success(
+            "Hesap başarıyla oluşturuldu! Email adresinizi kontrol edin."
+          );
+          setTimeout(() => {
+            router.push("/login");
+          }, 2000);
+        } else {
+          const errorData = await userResponse.json();
+          console.error("User database save failed:", errorData);
+          setError(
+            "Hesap oluşturuldu ancak veritabanına kaydedilemedi. Lütfen tekrar deneyin."
+          );
+          toast.error(
+            "Hesap oluşturuldu ancak veritabanına kaydedilemedi. Lütfen tekrar deneyin."
+          );
+        }
+      } catch (dbError) {
+        console.error("Database error:", dbError);
+        setError(
+          "Hesap oluşturuldu ancak veritabanına kaydedilemedi. Lütfen tekrar deneyin."
+        );
+        toast.error(
+          "Hesap oluşturuldu ancak veritabanına kaydedilemedi. Lütfen tekrar deneyin."
+        );
+      }
     } else {
-      setError(error.message);
-      toast.error(error.message);
+      setError(error?.message || "Hesap oluşturulurken hata oluştu");
+      toast.error(error?.message || "Hesap oluşturulurken hata oluştu");
     }
     setIsLoading(false);
   };
