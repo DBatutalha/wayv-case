@@ -2,6 +2,10 @@
 
 Modern, full-stack kampanya ve influencer yönetim sistemi. Next.js 15, tRPC, Supabase ve Drizzle ORM kullanılarak geliştirilmiştir.
 
+## 🌐 Canlı Demo
+
+**🚀 [https://wayv.netlify.app/](https://wayv.netlify.app/)**
+
 ## ✨ Özellikler
 
 ### 🎯 **Kampanya Yönetimi**
@@ -74,10 +78,13 @@ npm install
 `.env.local` dosyası oluşturun:
 
 ```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=https://hbepsjhwbwtcmnbcfipi.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZXBzamh3Ynd0Y21uYmNmaXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY0NzIwODIsImV4cCI6MjA3MjA0ODA4Mn0.R7XASMZ2uj9FJgMuMpanWOiGQnAUzjj-yf49ZJeWR1g
 
-
-# Database Connection
-DATABASE_URL=your-postgresql-connection-string
+# Database Connection (Use Session Pooler for IPv4 compatibility)
+DATABASE_URL=postgresql://postgres.hbepsjhwbwtcmnbcfipi:campain-app-case@aws-1-eu-north-1.pooler.supabase.com:5432/postgres?sslmode=require
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiZXBzamh3Ynd0Y21uYmNmaXBpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NjQ3MjA4MiwiZXhwIjoyMDcyMDQ4MDgyfQ.aRoEH8NXnnsc1ujfJSrHF_JqfpJpebSWbt9K6bgHz5w
 ```
 
 ### **4. Database Schema**
