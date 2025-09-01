@@ -16,26 +16,16 @@ export const influencersRouter = router({
     return db
       .select()
       .from(influencers)
-      .where(eq(influencers.user_id, ctx.user.id as any));
+      .where(eq(influencers.user_id, ctx.user.id as string));
   }),
 
   create: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== INFLUENCER INPUT TRANSFORM ===");
-        console.log("Raw influencer input:", data);
-        console.log("Input type:", typeof data);
-        console.log("Input keys:", Object.keys(data || {}));
-
-        // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual input after unwrapping:", actualInput);
-        console.log("Actual input keys:", Object.keys(actualInput || {}));
 
-        // Zod schema ile validate et
         try {
           const result = influencerInput.parse(actualInput);
-          console.log("Influencer Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("Influencer Zod validation failed:", error);
@@ -44,31 +34,19 @@ export const influencersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("=== INFLUENCER CREATE START ===");
-      console.log("Context user:", ctx.user?.id);
-      console.log("Input data:", input);
-
       if (!ctx.user) throw new Error("Unauthorized");
 
       try {
-        console.log("Inserting influencer with data:", {
-          user_id: ctx.user.id,
-          name: input.name,
-          followerCount: input.followerCount,
-          engagementRate: String(input.engagementRate),
-        });
-
         const [row] = await db
           .insert(influencers)
           .values({
-            user_id: ctx.user.id as any,
+            user_id: ctx.user.id as string,
             name: input.name,
             followerCount: input.followerCount,
             engagementRate: String(input.engagementRate),
-          } as any)
+          })
           .returning();
 
-        console.log("Influencer created successfully:", row);
         return row;
       } catch (error) {
         console.error("Database error creating influencer:", error);
@@ -79,21 +57,14 @@ export const influencersRouter = router({
   assignToCampaign: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== ASSIGN INFLUENCER INPUT TRANSFORM ===");
-        console.log("Raw assign input:", data);
-
-        // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual assign input:", actualInput);
 
-        // Zod schema ile validate et
         const assignSchema = z.object({
           influencerId: z.number(),
           campaignId: z.number(),
         });
         try {
           const result = assignSchema.parse(actualInput);
-          console.log("Assign Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("Assign Zod validation failed:", error);
@@ -102,18 +73,9 @@ export const influencersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("=== ASSIGN INFLUENCER START ===");
-      console.log("Context user:", ctx.user?.id);
-      console.log("Input data:", input);
-
       if (!ctx.user) throw new Error("Unauthorized");
 
       try {
-        console.log("Assigning influencer with data:", {
-          influencerId: input.influencerId,
-          campaignId: input.campaignId,
-        });
-
         const [row] = await db
           .insert(campaignInfluencers)
           .values({
@@ -122,7 +84,6 @@ export const influencersRouter = router({
           })
           .returning();
 
-        console.log("Influencer assigned successfully:", row);
         return row;
       } catch (error) {
         console.error("Database error assigning influencer:", error);
@@ -133,12 +94,8 @@ export const influencersRouter = router({
   unassignFromCampaign: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== UNASSIGN INFLUENCER INPUT TRANSFORM ===");
-        console.log("Raw unassign input:", data);
-
         // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual unassign input:", actualInput);
 
         // Zod schema ile validate et
         const unassignSchema = z.object({
@@ -147,7 +104,6 @@ export const influencersRouter = router({
         });
         try {
           const result = unassignSchema.parse(actualInput);
-          console.log("Unassign Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("Unassign Zod validation failed:", error);
@@ -156,18 +112,9 @@ export const influencersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("=== UNASSIGN INFLUENCER START ===");
-      console.log("Context user:", ctx.user?.id);
-      console.log("Input data:", input);
-
       if (!ctx.user) throw new Error("Unauthorized");
 
       try {
-        console.log("Unassigning influencer with data:", {
-          influencerId: input.influencerId,
-          campaignId: input.campaignId,
-        });
-
         const [row] = await db
           .delete(campaignInfluencers)
           .where(
@@ -178,7 +125,6 @@ export const influencersRouter = router({
           )
           .returning();
 
-        console.log("Influencer unassigned successfully:", row);
         return row;
       } catch (error) {
         console.error("Database error unassigning influencer:", error);
@@ -189,18 +135,13 @@ export const influencersRouter = router({
   byCampaign: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== BY CAMPAIGN INPUT TRANSFORM ===");
-        console.log("Raw byCampaign input:", data);
-
         // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual byCampaign input:", actualInput);
 
         // Zod schema ile validate et
         const byCampaignSchema = z.object({ campaignId: z.number() });
         try {
           const result = byCampaignSchema.parse(actualInput);
-          console.log("ByCampaign Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("ByCampaign Zod validation failed:", error);
@@ -209,16 +150,12 @@ export const influencersRouter = router({
       })
     )
     .query(async ({ input }) => {
-      console.log("=== BY CAMPAIGN QUERY START ===");
-      console.log("Input data:", input);
-
       try {
         const result = await db
           .select()
           .from(campaignInfluencers)
           .where(eq(campaignInfluencers.campaignId, input.campaignId));
 
-        console.log("ByCampaign query successful:", result);
         return result;
       } catch (error) {
         console.error("Database error in byCampaign:", error);
@@ -229,18 +166,11 @@ export const influencersRouter = router({
   update: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== INFLUENCER UPDATE INPUT TRANSFORM ===");
-        console.log("Raw update input:", data);
-
-        // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual update input:", actualInput);
 
-        // Zod schema ile validate et
         const updateSchema = influencerInput.extend({ id: z.number() });
         try {
           const result = updateSchema.parse(actualInput);
-          console.log("Influencer Update Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("Influencer Update Zod validation failed:", error);
@@ -249,10 +179,6 @@ export const influencersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("=== INFLUENCER UPDATE START ===");
-      console.log("Context user:", ctx.user?.id);
-      console.log("Update input data:", input);
-
       if (!ctx.user) throw new Error("Unauthorized");
 
       try {
@@ -262,20 +188,17 @@ export const influencersRouter = router({
           engagementRate: String(input.engagementRate),
         };
 
-        console.log("Updating influencer with data:", updateData);
-
         const [row] = await db
           .update(influencers)
-          .set(updateData as any)
+          .set(updateData)
           .where(
             and(
               eq(influencers.id, input.id),
-              eq(influencers.user_id, ctx.user.id as any)
+              eq(influencers.user_id, ctx.user.id as string)
             )
           )
           .returning();
 
-        console.log("Influencer updated successfully:", row);
         return row;
       } catch (error) {
         console.error("Database error updating influencer:", error);
@@ -286,18 +209,11 @@ export const influencersRouter = router({
   delete: publicProcedure
     .input(
       z.any().transform((data) => {
-        console.log("=== INFLUENCER DELETE INPUT TRANSFORM ===");
-        console.log("Raw delete input:", data);
-
-        // Input wrapper'ı çıkar
         const actualInput = data.input || data;
-        console.log("Actual delete input:", actualInput);
 
-        // Zod schema ile validate et
         const deleteSchema = z.object({ id: z.number() });
         try {
           const result = deleteSchema.parse(actualInput);
-          console.log("Influencer Delete Zod validation successful:", result);
           return result;
         } catch (error) {
           console.error("Influencer Delete Zod validation failed:", error);
@@ -306,26 +222,19 @@ export const influencersRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      console.log("=== INFLUENCER DELETE START ===");
-      console.log("Context user:", ctx.user?.id);
-      console.log("Delete input data:", input);
-
       if (!ctx.user) throw new Error("Unauthorized");
 
       try {
-        console.log("Deleting influencer ID:", input.id);
-
         const [row] = await db
           .delete(influencers)
           .where(
             and(
               eq(influencers.id, input.id),
-              eq(influencers.user_id, ctx.user.id as any)
+              eq(influencers.user_id, ctx.user.id as string)
             )
           )
           .returning();
 
-        console.log("Influencer deleted successfully:", row);
         return row;
       } catch (error) {
         console.error("Database error deleting influencer:", error);

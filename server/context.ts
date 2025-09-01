@@ -11,10 +11,6 @@ export async function createContext() {
     const cookieStore = await cookies();
     const cookieHeader = cookieStore.toString();
 
-    // Supabase URL'den project ref'i çıkar
-    const projectRef =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.split("//")[1]?.split(".")[0];
-
     // Supabase session token'ını bul (önce Authorization header, sonra cookie'ler)
     const supabaseAccessToken =
       authorizationHeader?.replace("Bearer ", "") ||
@@ -30,16 +26,6 @@ export async function createContext() {
         "sb-" +
           process.env.NEXT_PUBLIC_SUPABASE_URL?.split("//")[1]?.split(".")[0] +
           "-access-token"
-      )?.value;
-
-    const supabaseRefreshToken =
-      cookieStore.get("sb-refresh-token")?.value ||
-      cookieStore.get("supabase-refresh-token")?.value ||
-      cookieStore.get("refresh_token")?.value ||
-      cookieStore.get(
-        "sb-" +
-          process.env.NEXT_PUBLIC_SUPABASE_URL?.split("//")[1]?.split(".")[0] +
-          "-refresh-token"
       )?.value;
 
     const supabase = createClient(

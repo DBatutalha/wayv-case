@@ -40,6 +40,7 @@ export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [influencers, setInfluencers] = useState<Influencer[]>([]);
+
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showInfluencerForm, setShowInfluencerForm] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
@@ -72,7 +73,6 @@ export default function Dashboard() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-    watch,
   } = useForm<CampaignFormData>({
     resolver: zodResolver(campaignSchema),
     defaultValues: {
@@ -101,8 +101,6 @@ export default function Dashboard() {
     },
   });
 
-  const formValues = watch();
-
   const [influencerForm, setInfluencerForm] = useState({
     name: "",
     followerCount: 0,
@@ -115,36 +113,11 @@ export default function Dashboard() {
     engagementRate: 0,
   });
 
-  const validateCampaignForm = (data: CampaignFormData) => {
-    const errors = {
-      title: "",
-      description: "",
-      budget: "",
-      startDate: "",
-      endDate: "",
-    };
-
-    if (!data.title?.trim()) {
-      errors.title = "Lütfen bu alanı doldurun";
-    }
-    if (!data.description?.trim()) {
-      errors.description = "Lütfen bu alanı doldurun";
-    }
-    if (!data.budget?.trim()) {
-      errors.budget = "Lütfen bu alanı doldurun";
-    }
-    if (!data.startDate) {
-      errors.startDate = "Lütfen bu alanı doldurun";
-    }
-    if (!data.endDate) {
-      errors.endDate = "Lütfen bu alanı doldurun";
-    }
-
-    setFieldErrors(errors);
-    return Object.values(errors).every((error) => !error);
-  };
-
-  const validateInfluencerForm = (data: any) => {
+  const validateInfluencerForm = (data: {
+    name: string;
+    followerCount: number;
+    engagementRate: number;
+  }) => {
     const errors = {
       name: "",
       followerCount: "",
@@ -172,104 +145,58 @@ export default function Dashboard() {
       } = await supabase.auth.getSession();
       const accessToken = session?.access_token;
 
-      // İlk olarak tüm influencer'ları al
-      const influencersResponse = await fetch("/api/trpc/influencers.list", {
-        headers: {
-          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        },
-      });
+      if (session?.user?.email) {
+        try {
+          const ensureResponse = await fetch("/api/trpc/users.ensure", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+            },
+            body: JSON.stringify({
+              input: {
+                id: session.user.id,
+                email: session.user.email,
+              },
+            }),
+          });
 
-      let allInfluencers: Influencer[] = [];
-      if (influencersResponse.ok) {
-        const influencersData = await influencersResponse.json();
-        allInfluencers = influencersData.result?.data || [];
-        // State'i de güncelle
-        setInfluencers(allInfluencers);
+          if (!ensureResponse.ok) {
+            console.warn(
+              "User ensure failed, but continuing with campaigns fetch"
+            );
+          }
+        } catch (ensureError) {
+          console.warn(
+            "User ensure failed, continuing with campaigns fetch:",
+            ensureError
+          );
+        }
       }
 
-      const response = await fetch("/api/trpc/campaigns.list", {
-        headers: {
-          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        },
-      });
-      const data = await response.json();
-      if (data.result?.data) {
-        const campaignsData = data.result.data;
+      const campaignsResponse = await fetch(
+        "/api/trpc/campaigns.listWithInfluencers",
+        {
+          headers: {
+            ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+          },
+        }
+      );
 
-        const getCampaignInfluencers = async (
-          campaignId: number
-        ): Promise<Influencer[]> => {
-          try {
-            const response = await fetch(
-              `/api/trpc/influencers.byCampaign?input=${encodeURIComponent(
-                JSON.stringify({ campaignId })
-              )}`,
-              {
-                method: "GET",
-                headers: {
-                  ...(accessToken && {
-                    Authorization: `Bearer ${accessToken}`,
-                  }),
-                },
-              }
-            );
+      if (campaignsResponse.ok) {
+        const campaignsData = await campaignsResponse.json();
+        if (campaignsData.result?.data) {
+          const { campaigns: campaignsWithInfluencers, allInfluencers } =
+            campaignsData.result.data;
 
-            if (response.ok) {
-              const data = await response.json();
-              const campaignInfluencerIds = data.result?.data || [];
-              // allInfluencers'ı kullan (mevcut influencers state'ine bağımlı değil)
-              const assignedInfluencers = allInfluencers.filter((inf) =>
-                campaignInfluencerIds.some(
-                  (ci: { influencerId: number }) => ci.influencerId === inf.id
-                )
-              );
-              return assignedInfluencers;
-            } else {
-              return [];
-            }
-          } catch (error) {
-            console.error("Error fetching campaign influencers:", error);
-            return [];
-          }
-        };
-
-        const campaignsWithInfluencers = await Promise.all(
-          campaignsData.map(async (campaign: Campaign) => {
-            const assignedInfluencers = await getCampaignInfluencers(
-              campaign.id
-            );
-            return {
-              ...campaign,
-              assignedInfluencers,
-            };
-          })
-        );
-
-        setCampaigns(campaignsWithInfluencers);
+          setCampaigns(campaignsWithInfluencers);
+          setInfluencers(allInfluencers);
+        }
+      } else {
+        console.error("Failed to fetch campaigns with influencers");
       }
     } catch (error) {
       console.error("Error fetching campaigns:", error);
-    }
-  }, []); // influencers dependency'sini kaldırdım
-
-  const fetchInfluencers = useCallback(async () => {
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      const response = await fetch("/api/trpc/influencers.list", {
-        headers: {
-          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-        },
-      });
-      const data = await response.json();
-      if (data.result?.data) {
-        setInfluencers(data.result.data);
-      }
-    } catch (error) {
-      console.error("Error fetching influencers:", error);
     }
   }, []);
 
@@ -282,7 +209,7 @@ export default function Dashboard() {
           window.location.href = "/login";
         } else {
           setUser(data.user);
-          // fetchCampaigns artık influencer'ları da alıyor
+
           fetchCampaigns();
         }
       } catch (error) {
@@ -294,7 +221,6 @@ export default function Dashboard() {
 
     getUser();
 
-    // Session değişikliklerini dinle
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -307,42 +233,11 @@ export default function Dashboard() {
         }
       } else if (event === "SIGNED_IN" && session?.user) {
         setUser(session.user);
-
-        // User'ı users tablosuna kaydet (eğer yoksa)
-        try {
-          const userResponse = await fetch("/api/trpc/users.ensureUser", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              input: {
-                id: session.user.id,
-                email: session.user.email!,
-              },
-            }),
-          });
-
-          if (userResponse.ok) {
-            const result = await userResponse.json();
-            console.log(
-              "User ensured in auth state change:",
-              result.result?.data
-            );
-          } else {
-            console.error(
-              "User ensure failed in auth state change:",
-              await userResponse.json()
-            );
-          }
-        } catch (dbError) {
-          console.error("Database error in auth state change:", dbError);
-        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchCampaigns]);
 
   const createCampaign = async (data: CampaignFormData) => {
     try {
@@ -397,7 +292,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
 
         reset();
         setShowCreateForm(false);
@@ -453,7 +348,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
 
         setInfluencerForm({ name: "", followerCount: 0, engagementRate: 0 });
         setShowInfluencerForm(false);
@@ -462,7 +357,7 @@ export default function Dashboard() {
           followerCount: "",
           engagementRate: "",
         });
-        fetchInfluencers();
+        fetchCampaigns();
       } else {
         const errorData = await response.json();
         toast.error(
@@ -478,6 +373,26 @@ export default function Dashboard() {
   };
 
   const assignInfluencer = async (influencerId: number, campaignId: number) => {
+    const influencerToAssign = influencers.find((i) => i.id === influencerId);
+
+    if (influencerToAssign) {
+      setCampaigns((prev) =>
+        prev.map((campaign) =>
+          campaign.id === campaignId
+            ? {
+                ...campaign,
+                assignedInfluencers: [
+                  ...(campaign.assignedInfluencers || []),
+                  influencerToAssign,
+                ],
+              }
+            : campaign
+        )
+      );
+
+      setSelectedCampaign(null);
+    }
+
     try {
       const {
         data: { session },
@@ -494,13 +409,26 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Influencer assigned successfully!");
-
-        setSelectedCampaign(null);
-
-        fetchCampaigns();
       } else {
+        if (influencerToAssign) {
+          setCampaigns((prev) =>
+            prev.map((campaign) =>
+              campaign.id === campaignId
+                ? {
+                    ...campaign,
+                    assignedInfluencers:
+                      campaign.assignedInfluencers?.filter(
+                        (i) => i.id !== influencerId
+                      ) || [],
+                  }
+                : campaign
+            )
+          );
+          setSelectedCampaign((prev) => prev);
+        }
+
         const errorData = await response.json();
         toast.error(
           `Influencer assignment failed: ${
@@ -509,6 +437,24 @@ export default function Dashboard() {
         );
       }
     } catch (error) {
+      if (influencerToAssign) {
+        setCampaigns((prev) =>
+          prev.map((campaign) =>
+            campaign.id === campaignId
+              ? {
+                  ...campaign,
+                  assignedInfluencers:
+                    campaign.assignedInfluencers?.filter(
+                      (i) => i.id !== influencerId
+                    ) || [],
+                }
+              : campaign
+          )
+        );
+
+        setSelectedCampaign((prev) => prev);
+      }
+
       console.error("Error assigning influencer:", error);
       toast.error(`Influencer assignment failed: ${error}`);
     }
@@ -518,6 +464,26 @@ export default function Dashboard() {
     influencerId: number,
     campaignId: number
   ) => {
+    const influencerToUnassign = campaigns
+      .find((c) => c.id === campaignId)
+      ?.assignedInfluencers?.find((i) => i.id === influencerId);
+
+    if (influencerToUnassign) {
+      setCampaigns((prev) =>
+        prev.map((campaign) =>
+          campaign.id === campaignId
+            ? {
+                ...campaign,
+                assignedInfluencers:
+                  campaign.assignedInfluencers?.filter(
+                    (i) => i.id !== influencerId
+                  ) || [],
+              }
+            : campaign
+        )
+      );
+    }
+
     try {
       const {
         data: { session },
@@ -537,11 +503,25 @@ export default function Dashboard() {
       );
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Influencer unassigned successfully!");
-
-        fetchCampaigns();
       } else {
+        if (influencerToUnassign) {
+          setCampaigns((prev) =>
+            prev.map((campaign) =>
+              campaign.id === campaignId
+                ? {
+                    ...campaign,
+                    assignedInfluencers: [
+                      ...(campaign.assignedInfluencers || []),
+                      influencerToUnassign,
+                    ],
+                  }
+                : campaign
+            )
+          );
+        }
+
         const errorData = await response.json();
         toast.error(
           `Influencer unassignment failed: ${
@@ -550,6 +530,22 @@ export default function Dashboard() {
         );
       }
     } catch (error) {
+      if (influencerToUnassign) {
+        setCampaigns((prev) =>
+          prev.map((campaign) =>
+            campaign.id === campaignId
+              ? {
+                  ...campaign,
+                  assignedInfluencers: [
+                    ...(campaign.assignedInfluencers || []),
+                    influencerToUnassign,
+                  ],
+                }
+              : campaign
+          )
+        );
+      }
+
       console.error("Error unassigning influencer:", error);
       toast.error(`Influencer unassignment failed: ${error}`);
     }
@@ -642,7 +638,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Campaign updated successfully!");
 
         resetEdit();
@@ -680,6 +676,11 @@ export default function Dashboard() {
 
     if (!confirmDelete) return;
 
+    const campaignToDelete = campaigns.find((c) => c.id === campaignId);
+    if (campaignToDelete) {
+      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+    }
+
     try {
       const {
         data: { session },
@@ -696,11 +697,13 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Campaign deleted successfully!");
-
-        fetchCampaigns();
       } else {
+        if (campaignToDelete) {
+          setCampaigns((prev) => [...prev, campaignToDelete]);
+        }
+
         const errorData = await response.json();
         toast.error(
           `Campaign deletion failed: ${
@@ -709,6 +712,10 @@ export default function Dashboard() {
         );
       }
     } catch (error) {
+      if (campaignToDelete) {
+        setCampaigns((prev) => [...prev, campaignToDelete]);
+      }
+
       console.error("Error deleting campaign:", error);
       toast.error(`Campaign deletion failed: ${error}`);
     }
@@ -763,7 +770,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Influencer updated successfully!");
 
         setInfluencerEditForm({
@@ -778,7 +785,6 @@ export default function Dashboard() {
           followerCount: "",
           engagementRate: "",
         });
-        fetchInfluencers();
         fetchCampaigns();
       } else {
         const errorData = await response.json();
@@ -804,6 +810,21 @@ export default function Dashboard() {
 
     if (!confirmDelete) return;
 
+    const influencerToDelete = influencers.find((i) => i.id === influencerId);
+    if (influencerToDelete) {
+      setInfluencers((prev) => prev.filter((i) => i.id !== influencerId));
+
+      setCampaigns((prev) =>
+        prev.map((campaign) => ({
+          ...campaign,
+          assignedInfluencers:
+            campaign.assignedInfluencers?.filter(
+              (i) => i.id !== influencerId
+            ) || [],
+        }))
+      );
+    }
+
     try {
       const {
         data: { session },
@@ -820,12 +841,14 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const result = await response.json();
+        await response.json();
         toast.success("Influencer deleted successfully!");
-
-        fetchInfluencers();
-        fetchCampaigns();
       } else {
+        if (influencerToDelete) {
+          setInfluencers((prev) => [...prev, influencerToDelete]);
+          fetchCampaigns();
+        }
+
         const errorData = await response.json();
         toast.error(
           `Influencer deletion failed: ${
@@ -834,6 +857,11 @@ export default function Dashboard() {
         );
       }
     } catch (error) {
+      if (influencerToDelete) {
+        setInfluencers((prev) => [...prev, influencerToDelete]);
+        fetchCampaigns();
+      }
+
       console.error("Error deleting influencer:", error);
       toast.error(`Influencer deletion failed: ${error}`);
     }
@@ -914,7 +942,7 @@ export default function Dashboard() {
                       type="text"
                       placeholder="Campaign Title"
                       {...register("title")}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 break-words ${
                         errors.title || fieldErrors.title
                           ? "border-red-500"
                           : "border-gray-300"
@@ -1061,7 +1089,7 @@ export default function Dashboard() {
                       type="text"
                       placeholder="Campaign Title"
                       {...registerEdit("title")}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 break-words ${
                         errorsEdit.title ? "border-red-500" : "border-gray-300"
                       }`}
                     />
@@ -1202,11 +1230,22 @@ export default function Dashboard() {
                 key={campaign.id}
                 className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow"
               >
-                <h3 className="font-semibold text-xl text-gray-900 mb-3">
+                <h3 className="font-semibold text-xl text-gray-900 mb-3 break-words overflow-hidden">
                   {campaign.title}
                 </h3>
                 {campaign.description && (
-                  <p className="text-gray-600 mb-4">{campaign.description}</p>
+                  <p
+                    className="text-gray-600 mb-4 break-words overflow-hidden"
+                    style={{
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {campaign.description}
+                  </p>
                 )}
                 <div className="space-y-2 mb-4">
                   {campaign.budget && (
@@ -1244,8 +1283,8 @@ export default function Dashboard() {
                                 key={influencer.id}
                                 className="flex items-center justify-between text-xs text-gray-600 group"
                               >
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-medium">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                  <span className="font-medium break-words overflow-hidden">
                                     {influencer.name}
                                   </span>
                                   <span className="text-gray-400">
@@ -1380,7 +1419,7 @@ export default function Dashboard() {
                           name: e.target.value,
                         })
                       }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 break-words ${
                         influencerFieldErrors.name
                           ? "border-red-500"
                           : "border-gray-300"
@@ -1482,7 +1521,7 @@ export default function Dashboard() {
                           name: e.target.value,
                         })
                       }
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 ${
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-gray-900 placeholder-gray-500 break-words ${
                         influencerFieldErrors.name
                           ? "border-red-500"
                           : "border-gray-300"
@@ -1585,7 +1624,7 @@ export default function Dashboard() {
                 key={influencer.id}
                 className="bg-white rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-shadow"
               >
-                <h3 className="font-semibold text-lg text-gray-900 mb-3">
+                <h3 className="font-semibold text-lg text-gray-900 mb-3 break-words overflow-hidden">
                   {influencer.name}
                 </h3>
                 <div className="space-y-2 mb-4">
@@ -1700,8 +1739,8 @@ export default function Dashboard() {
                         key={influencer.id}
                         className="flex justify-between items-center p-2 bg-green-50 border border-green-200 rounded-lg group"
                       >
-                        <div>
-                          <p className="font-medium text-green-800 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-green-800 text-sm break-words overflow-hidden">
                             {influencer.name}
                           </p>
                           <p className="text-xs text-green-600">
@@ -1760,8 +1799,8 @@ export default function Dashboard() {
                     key={influencer.id}
                     className="flex justify-between items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 break-words overflow-hidden">
                         {influencer.name}
                       </p>
                       <p className="text-sm text-gray-500">

@@ -106,13 +106,6 @@ export default function SignUp() {
           email: authData.user.email!,
         };
 
-        console.log("Sending user data to API:", userData);
-        console.log("User ID:", authData.user.id);
-        console.log("User Email:", authData.user.email);
-        console.log("User ID type:", typeof authData.user.id);
-        console.log("User Email type:", typeof authData.user.email);
-        console.log("JSON stringified data:", JSON.stringify(userData));
-
         const userResponse = await fetch("/api/trpc/users.create", {
           method: "POST",
           headers: {

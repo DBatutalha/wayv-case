@@ -37,10 +37,6 @@ export const usersRouter = router({
   // Yeni user oluştur - signup başarılı olduktan sonra
   create: publicProcedure.input(userInput).mutation(async ({ input }) => {
     try {
-      console.log("User create mutation called with input:", input);
-      console.log("Input type:", typeof input);
-      console.log("Input keys:", Object.keys(input));
-
       // Input validation
       if (!input || typeof input !== "object") {
         throw new Error("Invalid input: input must be an object");
@@ -75,14 +71,8 @@ export const usersRouter = router({
         .limit(1);
 
       if (existingUser.length > 0) {
-        console.log("Email already exists:", input.email);
         throw new Error("Bu email adresi zaten kullanımda");
       }
-
-      console.log("Creating new user with data:", {
-        id: input.id,
-        email: input.email,
-      });
 
       // Yeni user oluştur
       const [newUser] = await db
@@ -93,7 +83,6 @@ export const usersRouter = router({
         })
         .returning();
 
-      console.log("User created successfully:", newUser);
       return newUser;
     } catch (error) {
       console.error("User creation error:", error);
@@ -171,7 +160,9 @@ export const usersRouter = router({
     .input(userInput.partial().extend({ id: z.string().uuid() }))
     .mutation(async ({ input }) => {
       try {
-        const updateData: any = {};
+        const updateData: { email?: string; updatedAt: Date } = {
+          updatedAt: new Date(),
+        };
 
         if (input.email) {
           // Email güncelleniyorsa, yeni email'in başka bir user tarafından kullanılmadığından emin ol
@@ -189,8 +180,6 @@ export const usersRouter = router({
 
           updateData.email = input.email;
         }
-
-        updateData.updatedAt = new Date();
 
         const [updatedUser] = await db
           .update(users)

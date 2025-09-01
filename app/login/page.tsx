@@ -68,8 +68,7 @@ export default function Login() {
         });
 
         if (userResponse.ok) {
-          const result = await userResponse.json();
-          console.log("User ensured:", result.result?.data);
+          await userResponse.json();
 
           toast.success("Başarıyla giriş yapıldı!");
           router.push("/dashboard");

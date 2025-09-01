@@ -1,6 +1,7 @@
 // Test script: User creation işlemini test et
 // Bu script'i çalıştırmak için: node scripts/test-user-creation.js
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { drizzle } = require("drizzle-orm/postgres-js");
 const postgres = require("postgres");
 
@@ -14,6 +15,7 @@ if (!databaseUrl) {
 
 // Database connection
 const sql = postgres(databaseUrl);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const db = drizzle(sql);
 
 async function testUserCreation() {

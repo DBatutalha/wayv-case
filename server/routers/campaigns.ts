@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { publicProcedure, router } from "@/server/trpc";
 import { db } from "@/lib/drizzle";
-import { campaigns } from "@/drizzle/schema";
+import { campaigns, campaignInfluencers, influencers } from "@/drizzle/schema";
 import { and, eq } from "drizzle-orm";
 
 const campaignInput = z.object({
@@ -21,6 +21,53 @@ export const campaignsRouter = router({
       .select()
       .from(campaigns)
       .where(eq(campaigns.user_id, ctx.user.id as unknown as string));
+  }),
+
+  listWithInfluencers: publicProcedure.query(async ({ ctx }) => {
+    if (!ctx.user) return [];
+
+    try {
+      // Tüm kampanyaları al
+      const campaignsData = await db
+        .select()
+        .from(campaigns)
+        .where(eq(campaigns.user_id, ctx.user.id as unknown as string));
+
+      // Tüm influencer'ları al
+      const allInfluencers = await db
+        .select()
+        .from(influencers)
+        .where(eq(influencers.user_id, ctx.user.id as unknown as string));
+
+      // Tüm kampanya-influencer eşleştirmelerini al
+      const campaignInfluencerMappings = await db
+        .select()
+        .from(campaignInfluencers);
+
+      // Kampanyaları influencer'ları ile birleştir
+      const campaignsWithInfluencers = campaignsData.map((campaign) => {
+        const assignedInfluencerIds = campaignInfluencerMappings
+          .filter((mapping) => mapping.campaignId === campaign.id)
+          .map((mapping) => mapping.influencerId);
+
+        const assignedInfluencers = allInfluencers.filter((influencer) =>
+          assignedInfluencerIds.includes(influencer.id)
+        );
+
+        return {
+          ...campaign,
+          assignedInfluencers,
+        };
+      });
+
+      return {
+        campaigns: campaignsWithInfluencers,
+        allInfluencers: allInfluencers,
+      };
+    } catch (error) {
+      console.error("Error fetching campaigns with influencers:", error);
+      throw error;
+    }
   }),
 
   create: publicProcedure
@@ -50,7 +97,7 @@ export const campaignsRouter = router({
 
       try {
         const campaignData = {
-          user_id: ctx.user.id as unknown as string,
+          user_id: ctx.user.id as string,
           title: input.title,
           description: input.description,
           budget: input.budget,
@@ -60,7 +107,7 @@ export const campaignsRouter = router({
 
         const [row] = await db
           .insert(campaigns)
-          .values(campaignData as any)
+          .values(campaignData)
           .returning();
 
         return row;
@@ -105,11 +152,11 @@ export const campaignsRouter = router({
 
         const [row] = await db
           .update(campaigns)
-          .set(updateData as any)
+          .set(updateData)
           .where(
             and(
               eq(campaigns.id, input.id),
-              eq(campaigns.user_id, ctx.user.id as any)
+              eq(campaigns.user_id, ctx.user.id as string)
             )
           )
           .returning();
@@ -147,7 +194,7 @@ export const campaignsRouter = router({
           .where(
             and(
               eq(campaigns.id, input.id),
-              eq(campaigns.user_id, ctx.user.id as any)
+              eq(campaigns.user_id, ctx.user.id as string)
             )
           )
           .returning();

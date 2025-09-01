@@ -1,6 +1,7 @@
 // Migration script: Supabase Auth'taki mevcut kullanıcıları users tablosuna kaydet
 // Bu script'i çalıştırmak için: node scripts/migrate-users.js
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createClient } = require("@supabase/supabase-js");
 const { drizzle } = require("drizzle-orm/postgres-js");
 const postgres = require("postgres");
@@ -23,6 +24,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Database connection
 const sql = postgres(databaseUrl);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const db = drizzle(sql);
 
 async function migrateUsers() {
